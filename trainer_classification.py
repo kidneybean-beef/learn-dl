@@ -86,6 +86,9 @@ if __name__ == "__main__":
         if configs["Dataset"]["name"] == "CIFAR10":
             trn_data = datasets.CIFAR10(root=configs["Dataset"]["root_path"], train=True, transform=trn_trans, download=True)
             tst_data = datasets.CIFAR10(root=configs["Dataset"]["root_path"], train=False, transform=tst_trans, download=True)
+        elif configs["Dataset"]["name"] == "MNIST":
+            trn_data = datasets.MNIST(root=configs["Dataset"]["root_path"], train=True, transform=trn_trans, download=True)
+            tst_data = datasets.MNIST(root=configs["Dataset"]["root_path"], train=False, transform=tst_trans, download=True)
         else:
             raise NotImplementedError
     else:
