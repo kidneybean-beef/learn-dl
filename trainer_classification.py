@@ -2,7 +2,6 @@ import os
 import torch
 import argparse
 import torch.nn as nn
-import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
 from collections import defaultdict
 from torch.utils.data.dataloader import DataLoader
@@ -14,6 +13,8 @@ from classification import utils
 from classification.dataset import DatasetCls
 from classification.transforms.transforms import ToRGB
 
+from torch.utils.tensorboard import SummaryWriter
+import datetime
 
 def run_one_step(x, y):
     if device == "cuda":
@@ -41,10 +42,14 @@ if __name__ == "__main__":
     configs = utils.load_yaml_file(config_file_path)
 
     # Create output dict if it does not exist
+    timestamp = datetime.datetime.now().strftime("%b%d_%H-%M-%S") # e.g., "Aug25_19-24-27"
     output_path = os.path.join(configs["Train"]["output"])
+    output_path = os.path.join(output_path, timestamp)
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
+    # Log scalars with Tensorboard
+    writer = SummaryWriter(log_dir=output_path)
     # This is logger. All training info will be stored in it.
     log = utils.Logger(os.path.join(output_path, "train.log"))
 
@@ -220,6 +225,11 @@ if __name__ == "__main__":
 
                     log.logger.info("{:<40}  {:<8}".format(f"Train loss  at {iterations}-th iteration   : ", trn_loss))
                     log.logger.info("{:<40}  {:<8}".format(f"Train error at {iterations}-th iteration   : ", trn_error))
+
+                    # ADD TensorBoard logging for scalars
+                    writer.add_scalar('Loss/Train', trn_loss, iterations)
+                    writer.add_scalar('Error/Train', trn_error, iterations)
+
                     trn_loss, trn_pos, tst_loss, tst_pos = 0., 0., 0., 0.
                     model.eval()
                     with torch.no_grad():
@@ -237,6 +247,9 @@ if __name__ == "__main__":
                         tst_error_list.append(tst_error)
                         log.logger.info("{:<40}  {:<8}".format(f"Test  loss  at {iterations}-th iteration   : ", tst_loss))
                         log.logger.info("{:<40}  {:<8}".format(f"Test  error at {iterations}-th iteration   : ", tst_error))
+
+                        writer.add_scalar('Loss/Test', tst_loss, iterations)
+                        writer.add_scalar('Error/Test', tst_error, iterations)
 
                         # save last
                         if device == "cuda":
@@ -266,15 +279,7 @@ if __name__ == "__main__":
                         log.logger.info("{:<40}  {:<8}".format(f"Best error     at {iterations}-th iteration: ", best_error))
                         log.logger.info("")
 
-                        plt.figure(figsize=(20, 8), dpi=80)
-                        epoch_list = [i + 1 for i in range(len(trn_loss_list))]
-                        plt.plot(epoch_list, trn_error_list, color="red", label="training_error")
-                        plt.plot(epoch_list, tst_error_list, color="blue", label="test_error")
-                        plt.xlabel(f"iterations x{save_freq}")
-                        plt.ylabel("error")
-                        plt.legend(loc="upper right")
-                        plt.savefig(os.path.join(configs["Train"]["output"], "train_test_curve.jpg"))
-                        plt.close()
+                        writer.add_scalar('Error/Best', best_error, iterations)
 
             if iterations == configs["Train"]["iterations"]:
                 break
@@ -318,6 +323,11 @@ if __name__ == "__main__":
                     tst_error_list.append(tst_error)
                     log.logger.info("{:<30}  {:<8}".format(f"Test loss  at {iterations}-th iteration: ", tst_loss))
                     log.logger.info("{:<30}  {:<8}".format(f"Test error at {iterations}-th iteration: ", tst_error))
+
+                    writer.add_scalar('Loss/Test', tst_loss, iterations)
+                    writer.add_scalar('Error/Test', tst_error, iterations)
+            
+            writer.close()
 
             # save last
             if device == "cuda":
