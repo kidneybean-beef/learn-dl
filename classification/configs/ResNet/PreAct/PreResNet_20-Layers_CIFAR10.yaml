@@ -1,6 +1,6 @@
 Dataset:
   name: "CIFAR10"
-  root_path: "../workspace/Datasets"
+  root_path: "/home/xin/axin/datasets"
   batch_size: 128
   h: 32
   w: 32
@@ -71,8 +71,8 @@ Model:
       nonlinearity: "relu"
 
 Train:
-  iterations: 64000
-  save_freq: 500
-  output: "../workspace/Output/ResNet/PreResNet_20-Layers_CIFAR10"
+  iterations: 6400
+  save_freq: 100
+  output: "./runs/ResNet/PreResNet_20-Layers_CIFAR10"
   keep_gradients: False
   device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu
