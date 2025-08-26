@@ -127,8 +127,12 @@ if __name__ == "__main__":
     device_id, device_ids, device = utils.parse_device(configs["Train"]["device"])
 
     # Load a pre-trained model if "snapshot" is specified
+    snapshot_path = None
+    loaded = None
     if "snapshot" in configs["Train"]:
-        model.load_state_dict(torch.load(configs["Train"]["snapshot"])["model"])
+        snapshot_path = configs["Train"]["snapshot"]
+        loaded = torch.load(os.path.join(snapshot_path, "last.pth"))
+        model.load_state_dict(loaded["model"])
 
     # Set multi-GPU mode if more than one GPU used.
     if device == "cuda":
@@ -176,6 +180,8 @@ if __name__ == "__main__":
     # simply setting the tag "OPT" in the config file.
     # See config files in the "classification/configs" dict for example.
     optimizer = utils.get_optimizer(model.parameters(), configs["Model"]["OPT"])
+    if "snapshot" in configs["Train"]:
+        optimizer.load_state_dict(loaded["opt"])
 
     # Set scheduler.
     # You can use any scheduler supported by PyTorch
@@ -190,6 +196,7 @@ if __name__ == "__main__":
     # but as most codes are used only here, warping makes no sense.
     trn_error_list, tst_error_list, trn_loss_list, tst_loss_list = [], [], [], []
     iterations, best_error, best_iter, trn_loss, trn_pos = 0, 1., 0, 0., 0.
+    iterations_glob = loaded["iterations"]
     save_freq = configs["Train"]["save_freq"]
 
     with torch.autograd.set_detect_anomaly(True):
@@ -211,6 +218,7 @@ if __name__ == "__main__":
                     scheduler.step()
 
                 iterations += 1
+                iterations_glob += 1
                 if iterations % save_freq == 0:
                     if keep_gradients:
                         for name, layer in model.named_modules():
@@ -226,12 +234,12 @@ if __name__ == "__main__":
                     trn_error = 1 - trn_pos / (batch_size * save_freq)
                     trn_error_list.append(trn_error)
 
-                    log.logger.info("{:<40}  {:<8}".format(f"Train loss  at {iterations}-th iteration   : ", trn_loss))
-                    log.logger.info("{:<40}  {:<8}".format(f"Train error at {iterations}-th iteration   : ", trn_error))
+                    log.logger.info("{:<40}  {:<8}".format(f"Train loss  at {iterations_glob}-th iteration   : ", trn_loss))
+                    log.logger.info("{:<40}  {:<8}".format(f"Train error at {iterations_glob}-th iteration   : ", trn_error))
 
-                    # ADD TensorBoard logging for scalars
-                    writer.add_scalar('Loss/Train', trn_loss, iterations)
-                    writer.add_scalar('Error/Train', trn_error, iterations)
+                    # TensorBoard logging for scalars
+                    writer.add_scalar('Loss/Train', trn_loss, iterations_glob)
+                    writer.add_scalar('Error/Train', trn_error, iterations_glob)
 
                     trn_loss, trn_pos, tst_loss, tst_pos = 0., 0., 0., 0.
                     model.eval()
@@ -248,11 +256,11 @@ if __name__ == "__main__":
                         tst_loss = tst_loss / len(tst_data)
                         tst_loss_list.append(tst_loss)
                         tst_error_list.append(tst_error)
-                        log.logger.info("{:<40}  {:<8}".format(f"Test  loss  at {iterations}-th iteration   : ", tst_loss))
-                        log.logger.info("{:<40}  {:<8}".format(f"Test  error at {iterations}-th iteration   : ", tst_error))
+                        log.logger.info("{:<40}  {:<8}".format(f"Test  loss  at {iterations_glob}-th iteration   : ", tst_loss))
+                        log.logger.info("{:<40}  {:<8}".format(f"Test  error at {iterations_glob}-th iteration   : ", tst_error))
 
-                        writer.add_scalar('Loss/Test', tst_loss, iterations)
-                        writer.add_scalar('Error/Test', tst_error, iterations)
+                        writer.add_scalar('Loss/Test', tst_loss, iterations_glob)
+                        writer.add_scalar('Error/Test', tst_error, iterations_glob)
 
                         # save last
                         if device == "cuda":
@@ -262,7 +270,7 @@ if __name__ == "__main__":
                         state = {
                             "model": state_dic,
                             "opt": optimizer.state_dict(),
-                            "iterations": iterations,
+                            "iterations": iterations_glob,
                             "trn_loss": trn_loss_list,
                             "tst_loss": tst_loss_list,
                             "trn_error": trn_error_list,
@@ -275,14 +283,14 @@ if __name__ == "__main__":
                         # save best
                         if tst_error < best_error:
                             best_error = tst_error
-                            best_iter = iterations
+                            best_iter = iterations_glob
                             torch.save(state, os.path.join(output_path, "best.pth"))
 
-                        log.logger.info("{:<40}  {:<8}".format(f"Best iteration at {iterations}-th iteration: ", best_iter))
-                        log.logger.info("{:<40}  {:<8}".format(f"Best error     at {iterations}-th iteration: ", best_error))
+                        log.logger.info("{:<40}  {:<8}".format(f"Best iteration at {iterations_glob}-th iteration: ", best_iter))
+                        log.logger.info("{:<40}  {:<8}".format(f"Best error     at {iterations_glob}-th iteration: ", best_error))
                         log.logger.info("")
 
-                        writer.add_scalar('Error/Best', best_error, iterations)
+                        writer.add_scalar('Error/Best', best_error, iterations_glob)
 
             if iterations == configs["Train"]["iterations"]:
                 break
@@ -324,11 +332,11 @@ if __name__ == "__main__":
                     tst_loss = tst_loss / len(tst_data)
                     tst_loss_list.append(tst_loss)
                     tst_error_list.append(tst_error)
-                    log.logger.info("{:<30}  {:<8}".format(f"Test loss  at {iterations}-th iteration: ", tst_loss))
-                    log.logger.info("{:<30}  {:<8}".format(f"Test error at {iterations}-th iteration: ", tst_error))
+                    log.logger.info("{:<30}  {:<8}".format(f"Test loss  at {iterations_glob}-th iteration: ", tst_loss))
+                    log.logger.info("{:<30}  {:<8}".format(f"Test error at {iterations_glob}-th iteration: ", tst_error))
 
-                    writer.add_scalar('Loss/Test', tst_loss, iterations)
-                    writer.add_scalar('Error/Test', tst_error, iterations)
+                    writer.add_scalar('Loss/Test', tst_loss, iterations_glob)
+                    writer.add_scalar('Error/Test', tst_error, iterations_glob)
             
             writer.close()
 

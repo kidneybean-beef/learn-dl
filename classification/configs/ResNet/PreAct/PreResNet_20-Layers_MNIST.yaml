@@ -72,5 +72,6 @@ Train:
   iterations: 1000
   save_freq: 100
   output: "./runs/ResNet/PreResNet_20-Layers_MNIST"
+  snapshot: "./runs/ResNet/PreResNet_20-Layers_MNIST/Aug26_01-19-19"
   keep_gradients: False
   device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu
