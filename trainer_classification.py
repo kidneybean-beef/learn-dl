@@ -7,6 +7,7 @@ from collections import defaultdict
 from torch.utils.data.dataloader import DataLoader
 from ptflops import get_model_complexity_info
 from torchvision import datasets
+import numpy as np
 
 import register
 from classification import utils
@@ -86,9 +87,11 @@ if __name__ == "__main__":
         if configs["Dataset"]["name"] == "CIFAR10":
             trn_data = datasets.CIFAR10(root=configs["Dataset"]["root_path"], train=True, transform=trn_trans, download=True)
             tst_data = datasets.CIFAR10(root=configs["Dataset"]["root_path"], train=False, transform=tst_trans, download=True)
+            classes = tst_data.classes
         elif configs["Dataset"]["name"] == "MNIST":
             trn_data = datasets.MNIST(root=configs["Dataset"]["root_path"], train=True, transform=trn_trans, download=True)
             tst_data = datasets.MNIST(root=configs["Dataset"]["root_path"], train=False, transform=tst_trans, download=True)
+            classes = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
         else:
             raise NotImplementedError
     else:
@@ -319,6 +322,7 @@ if __name__ == "__main__":
                 tst_loss = 0.
                 tst_pos = 0.
                 model.eval()
+                saved = False
                 with torch.no_grad():
                     for x, y in tst_loader:
                         loss, pred, y = run_one_step(x, y)
@@ -327,6 +331,13 @@ if __name__ == "__main__":
                             tst_pos += (pred.gt(0.5) == y).sum().cpu()
                         else:
                             tst_pos += (pred.argmax(dim=-1) == y).sum().cpu()
+                        
+                        if not saved:
+                            np.savez(os.path.join(output_path, "deploy_test_results"),
+                                     pred = pred.cpu().numpy(),
+                                     gt = y.cpu().numpy(),
+                                     labels = classes)
+                            saved = True
 
                     tst_error = 1 - tst_pos / len(tst_data)
                     tst_loss = tst_loss / len(tst_data)
