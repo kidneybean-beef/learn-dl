@@ -26,11 +26,15 @@ class GeneralNetwork(nn.Module):
         if num_classes == 2:
             num_classes = 1
         if num_classes > 0:
-            if fcs is None:
-                raise Exception("Fully connected layers are not specified by the key \"fcs\"!")
             self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
-            self.fcs = [conv() for conv in fcs]
-            self.fcs = nn.Sequential(*self.fcs)
+            if fcs is None:
+                self.fcs = nn.Sequential(
+                    nn.Flatten(),
+                    nn.Linear(out_channels, num_classes)
+                )
+            else:
+                self.fcs = [conv() for conv in fcs]
+                self.fcs = nn.Sequential(*self.fcs)
 
     @staticmethod
     def make_backbone(n_blocks_list, stride_list, in_channels, hidden_channels, stride_factor_list, conv_list):

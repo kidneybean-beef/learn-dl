@@ -199,7 +199,7 @@ if __name__ == "__main__":
     # but as most codes are used only here, warping makes no sense.
     trn_error_list, tst_error_list, trn_loss_list, tst_loss_list = [], [], [], []
     iterations, best_error, best_iter, trn_loss, trn_pos = 0, 1., 0, 0., 0.
-    iterations_glob = loaded["iterations"]
+    iterations_glob = loaded["iterations"] if "snapshot" in configs["Train"] else 0
     save_freq = configs["Train"]["save_freq"]
 
     with torch.autograd.set_detect_anomaly(True):
