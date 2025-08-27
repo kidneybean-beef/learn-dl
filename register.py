@@ -211,6 +211,8 @@ name_to_model = Register("name_to_model")
 # Registration for norm
 NAME_TO_NORMS = Register("name_to_norms")
 NAME_TO_NORMS["BatchNorm"] = nn.BatchNorm2d
+NAME_TO_NORMS["GroupNorm"] = nn.GroupNorm
+NAME_TO_NORMS["InstanceNorm"] = nn.InstanceNorm2d
 
 # Registration for activation
 NAME_TO_ACTS = Register("name_to_acts")

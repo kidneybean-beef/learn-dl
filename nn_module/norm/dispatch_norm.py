@@ -5,28 +5,18 @@ import register
 
 class DispatchNorm(nn.Module):
     """
-    This class is used to dispatch Norm method.
-    User can always use this Norm in network design.
-    We separate the implementation of user-designed norms
-    and PyTorch official norms by following way:
-      1) for PyTorch official norms, we use if-else to dispatch;
-      2) for user-designed norms, we use polymorphism.
-
-    Note: This implementation can be simplified once the Python
-          support singledispatch on Class, not only on Class Instance.
+    A generic normalization layer dispatcher.
+    
+    Args:
+        norm_class (nn.Module): The normalization layer class 
+                                (e.g., nn.BatchNorm2d, nn.GroupNorm).
+        **kwargs: Arguments to be passed to the norm_class constructor.
     """
-
-    def __init__(self, norm, **kwargs):
+    def __init__(self, norm_class, **kwargs):
         super().__init__()
-        self.norm = norm
-        self.kwargs = kwargs
-        self.norm_layer = self._init_norm()
-
-    def _init_norm(self):
-        if isinstance(self.norm, nn.BatchNorm2d):
-            return nn.BatchNorm2d(num_features=self.kwargs["num_features"])
-        else:
-            return self.norm(**self.kwargs)
+        # The 'norm_class' is now the actual class, not a string.
+        # The 'kwargs' dictionary contains all its required parameters.
+        self.norm_layer = norm_class(**kwargs)
 
     def forward(self, x):
         return self.norm_layer(x)
