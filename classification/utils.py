@@ -1,6 +1,7 @@
 import yaml
 import inspect
 import logging
+import functools
 import torch.nn as nn
 import torch.optim as opt
 from logging import handlers
@@ -8,6 +9,8 @@ import matplotlib.pyplot as plt
 from ptflops import get_model_complexity_info
 import torchvision.transforms as transforms
 import torch.optim.lr_scheduler as lr_scheduler
+from torchdiffeq import odeint, odeint_adjoint
+from torchdiffeq._impl.odeint import SOLVERS
 
 
 class Identity(nn.Module):
@@ -79,6 +82,74 @@ def get_optimizer(params, optimizer_configs):
         except Exception:
             pass
     return optimizers_available[optimizer_name](params=params, **args)
+
+def get_solver(solver_configs):
+    """
+    Parses solver configurations and returns a pre-configured odeint function.
+    Handles nested configurations for the solver method and its options.
+
+    Args:
+        solver_configs (dict): A dictionary from the YAML file containing solver settings.
+
+    Returns:
+        A functools.partial object wrapping either odeint or odeint_adjoint,
+        ready to be called with (func, y0, t).
+    """
+    if not isinstance(solver_configs, dict):
+        raise TypeError("solver_configs must be a dictionary.")
+
+    configs = solver_configs.copy()
+
+    # 1. Determine which odeint function to use
+    use_adjoint = configs.pop('adjoint', False)
+    odeint_func = odeint_adjoint if use_adjoint else odeint
+
+    # --- NEW PARSING LOGIC FOR METHOD AND OPTIONS ---
+    method_config = configs.pop('method', None)
+    method = None
+    options = {}
+
+    if method_config is None:
+        # Case: 'method' key is not specified at all. Use torchdiffeq default.
+        print("Warning: 'method' not specified in solver config, using torchdiffeq default.")
+    elif isinstance(method_config, str):
+        # Case: method: dopri5
+        method = method_config
+    elif isinstance(method_config, dict):
+        # Case: method: {dopri5: {max_steps: 1000}}
+        # if len(method_config) != 1:
+        #     raise ValueError(f"Solver 'method' config must have exactly one key (the method name), but found {list(method_config.keys())}")
+        
+        method = list(method_config.keys())[0]
+        # The nested dictionary becomes the options
+        options = method_config[method]
+        if options is None: # Handles the case where the value is null (e.g., dopri5: )
+            options = {}
+    else:
+        raise TypeError(f"Solver 'method' must be a string or a dictionary, but got {type(method_config)}")
+
+    # Validate the final method name
+    if method is not None and method not in SOLVERS:
+        raise ValueError(f"Unknown solver method '{method}'. Available solvers are: {list(SOLVERS.keys())}")
+
+    # 3. Extract tolerance arguments (same as before)
+    rtol = float(configs.pop('rtol', 1e-7))
+    atol = float(configs.pop('atol', 1e-9))
+        
+    # 4. Check for any remaining, unexpected keys in the main solver config
+    if configs:
+        raise ValueError(f"Unexpected keys in solver configuration: {list(configs.keys())}")
+
+    # 5. Create the dictionary of arguments for the odeint function
+    solver_kwargs = {
+        'method': method,
+        'rtol': rtol,
+        'atol': atol,
+        'options': options
+    }
+
+    # 6. Return a partial function with all arguments pre-filled
+    return functools.partial(odeint_func, **solver_kwargs)
 
 
 def init_nn(model, init_configs):

@@ -162,13 +162,13 @@ if __name__ == "__main__":
     input_shape = (model_configs["in_channels"],
                    configs["Dataset"]["h"],
                    configs["Dataset"]["w"])
-    macs, params = get_model_complexity_info(model,
-                                             input_shape,
-                                             as_strings=True,
-                                             print_per_layer_stat=True,
-                                             verbose=True)
-    log.logger.info('{:<30}  {:<8}'.format('Computational complexity: ', macs))
-    log.logger.info('{:<30}  {:<8}'.format('Number of parameters    : ', params))
+    # macs, params = get_model_complexity_info(model,
+    #                                          input_shape,
+    #                                          as_strings=False,
+    #                                          print_per_layer_stat=True,
+    #                                          verbose=False)
+    # log.logger.info('{:<30}  {:<8}'.format('Computational complexity: ', macs))
+    # log.logger.info('{:<30}  {:<8}'.format('Number of parameters    : ', params))
 
     # Set loss function
     num_classes = model_configs["num_classes"]

@@ -1,0 +1,102 @@
+Dataset:
+  name: "MNIST"
+  root_path: "/home/xin/axin/datasets"
+  batch_size: 128
+  h: 28
+  w: 28
+  num_workers: 16
+  pin_memory: True
+Argumentation:
+  RandomCrop:
+    size: [28, 28]
+    padding: 4
+  mean: [0.1307]
+  std: [0.3081]
+Model:
+  GNetwork:
+    in_channels    : 1
+    hidden_channels: 64
+    n_blocks_list  : [1, 1, 1, 1]
+    stride_list    : [1, 2, 2, 1]
+    stride_factor_list  : [1, 1, 1, 1]
+    num_classes    : 10
+    last_norm      :
+      GroupNorm:
+        num_groups: 32
+    last_act       : "ReLU"
+    convs:
+      conv0:
+        ConvNormAct:
+          norm:
+            GroupNorm:
+              num_groups: 32
+          act: "ReLU"
+          conv:
+            Conv2d:
+              kernel_size: 3
+              bias: True
+              padding: 0
+      conv1:
+        ConvNormAct:
+          norm:
+            GroupNorm:
+              num_groups: 32
+          act: "ReLU"
+          conv:
+            Conv2d:
+              kernel_size: 4
+              bias: True
+              padding: 1
+      conv2:
+        ConvNormAct:
+          norm:
+            IdentityNorm
+          act: "IdentityAct"
+          conv:
+            Conv2d:
+              kernel_size: 4
+              bias: True
+              padding: 1
+      conv3:
+        ODEBlock:
+          solver:
+            method: 
+              dopri5
+            atol: 1e-3
+            rtol: 1e-3
+            adjoint: False
+          ODEFunc:
+            TimeAwareBlockSequence:
+              num_blocks: 2
+              conv:
+                TimeAwareConvNormAct:
+                  norm:
+                    GroupNorm:
+                      num_groups: 32
+                  act: "ReLU"
+                  pre_act: True
+                  conv:
+                    ConcatConv2d:
+                      kernel_size: 3
+                      bias: False
+                      padding: 1
+  OPT:
+    SGD:
+      lr: 0.1
+      momentum: 0.9
+      weight_decay: 1e-4
+  Scheduler:
+    MultiStepLR:
+      gamma: 0.1
+      milestones: [32000, 48000]
+  Init:
+    kaiming_normal_:
+      mode: "fan_in"
+      nonlinearity: "relu"
+
+Train:
+  iterations: 1000
+  save_freq: 100
+  output: "./runs/ODENet/ResNet_6-Blocks_MNIST"
+  keep_gradients: False
+  device: [0]  # set to [0, 1, ...] for multiple GPUs; set "cpu" for cpu
